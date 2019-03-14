@@ -15,8 +15,7 @@ from .manager import *
 #*****************************************************
 class GtagsExplorer(Explorer):
     def __init__(self):
-        self._tag_list = []
-        self._file_tags = {}    # a dict with (key, value) = (tag file name, [mtime,taglist])
+        self._db_path = None
 
     def getContent(self, *args, **kwargs):
         return self.getFreshContent(*args, **kwargs)

@@ -138,6 +138,13 @@ let g:Lf_Arguments = {
             \           {"name": ["--match-path"], "nargs": 0, "help": "Match the file path when fuzzy searching."},
             \           {"name": ["--wd-mode"], "nargs": 1, "metavar": "<MODE>", "help": "Specify the working directory mode, value has the same meaning as g:Lf_WorkingDirectoryMode."},
             \   ],
+            \ "gtags":[
+            \           {"name": ["--update"], "nargs": 0, "help": "Create tag files if tag files do not exist, update the tag files otherwise"},
+            \           {"name": ["--accept-dotfiles"], "nargs": 0, "help": "Accept files and directories whose names begin with a dot.  By default, gtags ignores them."},
+            \           {"name": ["--skip-unreadable"], "nargs": 0, "help": "Skip unreadable files."},
+            \           {"name": ["--gtagsconf"], "nargs": 1, "metavar": "<FILE>", "help": "Set environment variable GTAGSCONF to <FILE>."},
+            \           {"name": ["--gtagslabel"], "nargs": 1, "metavar": "<LABEL>", "help": "Set environment variable GTAGSLABEL to <LABEL>."},
+            \   ],
             \}
 
 let g:Lf_CommonArguments = [
