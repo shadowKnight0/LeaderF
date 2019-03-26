@@ -617,6 +617,9 @@ class AnyHub(object):
             elif category == "rg":
                 from .rgExpl import rgExplManager
                 manager = rgExplManager
+            elif category == "gtags":
+                from .gtagsExpl import gtagsExplManager
+                manager = rgExplManager
             else:
                 lfCmd("call %s('%s')" % (lfEval("g:Lf_PythonExtensions['%s'].registerFunc" % category), category))
                 manager = self._pyext_manages[category]

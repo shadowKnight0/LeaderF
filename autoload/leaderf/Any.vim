@@ -48,6 +48,7 @@ let g:Lf_Helps = {
             \ "colorscheme":    "switch between colorschemes",
             \ "self":           "execute the commands of itself",
             \ "rg":             "grep using rg",
+            \ "gtags":          "navigate tags using the gtags",
             \ }
 
 let g:Lf_Arguments = {
@@ -144,6 +145,7 @@ let g:Lf_Arguments = {
             \           {"name": ["--skip-unreadable"], "nargs": 0, "help": "Skip unreadable files."},
             \           {"name": ["--gtagsconf"], "nargs": 1, "metavar": "<FILE>", "help": "Set environment variable GTAGSCONF to <FILE>."},
             \           {"name": ["--gtagslabel"], "nargs": 1, "metavar": "<LABEL>", "help": "Set environment variable GTAGSLABEL to <LABEL>."},
+            \           {"name": ["--skip-symlink"], "nargs": "?", "metavar": "<TYPE>", "help": "Skip symbolic links. If type is 'f' then skip only symbolic links for file, else if 'd' then skip only symbolic links for directory. The default value of type is 'a' (all symbolic links)."},
             \   ],
             \}
 
