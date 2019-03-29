@@ -47,8 +47,12 @@ class GtagsExplorer(Explorer):
             self._tag_list = list(itertools.chain.from_iterable((i[1] for i in self._file_tags.values())))
             return self._tag_list
 
+    def updateGtags(self, filename, auto=True):
+        if auto:
+
+
     def getStlCategory(self):
-        return 'Tag'
+        return 'Gtags'
 
     def getStlCurDir(self):
         return escQuote(lfEncode(os.getcwd()))
@@ -66,7 +70,7 @@ class GtagsExplManager(Manager):
         return GtagsExplorer
 
     def _defineMaps(self):
-        lfCmd("call leaderf#Tag#Maps()")
+        lfCmd("call leaderf#Gtags#Maps()")
 
     def _acceptSelection(self, *args, **kwargs):
         if len(args) == 0:
@@ -111,6 +115,10 @@ class GtagsExplManager(Manager):
             lfCmd("norm! ^")
         lfCmd("norm! zz")
         lfCmd("setlocal cursorline! | redraw | sleep 20m | setlocal cursorline!")
+
+    def generateGtags(self):
+        pass
+
 
     def _getDigest(self, line, mode):
         """
