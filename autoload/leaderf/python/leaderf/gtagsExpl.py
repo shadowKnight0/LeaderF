@@ -16,6 +16,7 @@ from .manager import *
 class GtagsExplorer(Explorer):
     def __init__(self):
         self._db_path = None
+        self._is_generated = False
 
     def getContent(self, *args, **kwargs):
         return self.getFreshContent(*args, **kwargs)
@@ -47,9 +48,39 @@ class GtagsExplorer(Explorer):
             self._tag_list = list(itertools.chain.from_iterable((i[1] for i in self._file_tags.values())))
             return self._tag_list
 
-    def updateGtags(self, filename, auto=True):
-        if auto:
+    def _rootPath(self, path, dir):
+        """
+        return True if `dir` exists in `path` or its ancestor path,
+        otherwise return False
+        """
+        if os.name == 'nt':
+            # e.g. C:\\
+            root = os.path.splitdrive(os.path.abspath(path))[0] + os.sep
+        else:
+            root = '/'
 
+        while os.path.abspath(path) != root:
+            cur_dir = os.path.join(path, dir)
+            if os.path.exists(cur_dir) and os.path.isdir(cur_dir):
+                return True
+            path = os.path.join(path, "..")
+
+        cur_dir = os.path.join(path, dir)
+        if os.path.exists(cur_dir) and os.path.isdir(cur_dir):
+            return True
+
+        return False
+
+    def updateGtags(self, filename, auto=True):
+        if filename:
+            if exists:
+                pass
+        elif (auto and not self._is_generated and isversioncontrol) or not auto:
+            self._is_generated = True
+            self._update(filename)
+
+    def _update(self, filename):
+        pass
 
     def getStlCategory(self):
         return 'Gtags'

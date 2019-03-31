@@ -38,6 +38,6 @@ function! leaderf#Gtags#startExpl(win_pos, ...)
     call leaderf#LfPy("gtagsExplManager.startExplorer('".a:win_pos."')")
 endfunction
 
-function! leaderf#Gtags#generateGtags()
-    call leaderf#LfPy("gtagsExplManager.generateGtags()")
+function! leaderf#Gtags#updateGtags(filename)
+    call leaderf#LfPy("gtagsExplManager.updateGtags('".a:filename."')")
 endfunction
