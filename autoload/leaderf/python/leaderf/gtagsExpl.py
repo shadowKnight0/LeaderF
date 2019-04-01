@@ -15,6 +15,7 @@ from .manager import *
 #*****************************************************
 class GtagsExplorer(Explorer):
     def __init__(self):
+        self._root_markers = lfEval("g:Lf_RootMarkers")
         self._db_location = os.path.join(lfEval("g:Lf_CacheDirectory"),
                                      '.LfCache',
                                      'gtags')
@@ -79,16 +80,16 @@ class GtagsExplorer(Explorer):
         if self._project_root and filename.startswith(self._project_root):
             return True
 
-        ancestor = self._nearestAncestor(lfEval("g:Lf_RootMarkers"), os.path.dirname(filename))
+        ancestor = self._nearestAncestor(self._root_markers, os.path.dirname(filename))
         if ancestor:
             self._project_root = ancestor
             return True
         else:
             return False
 
-    def _isGtagsExist(self, filename):
+    def _db_path(self, filename):
         """
-        return the dbpath if gtags exists, otherwise return ""
+        return the (dbpath,  whether gtags exists)
         """
         if self._project_root and filename.startswith(self._project_root):
             root = self._project_root
@@ -105,19 +106,25 @@ class GtagsExplorer(Explorer):
         else:
             db_folder = root.replace('/', '%')
 
-        return os.path.exists(os.path.join(self._db_location, db_folder, "GTAGS"))
+        dbpath = os.path.join(self._db_location, db_folder)
+        return (dbpath, os.path.exists(os.path.join(dbpath, "GTAGS")))
 
-
-    def updateGtags(self, filename, single_update, auto=True):
+    def updateGtags(self, filename, single_update, auto):
         if filename == "":
             return
 
         if single_update:
-            if self._isGtagsExist(filename):
+            dbpath, exists = self._db_path(filename)
+            if exists:
                 pass
-        elif (auto and self._isVersionControl(filename) and not self._isGtagsExist(filename)) or not auto:
-            self._update(filename)
-
+        elif not auto:
+            dbpath, exists = self._db_path(filename)
+            pass
+        elif self._isVersionControl(filename):
+            dbpath, exists = self._db_path(filename)
+            if not exists:
+                pass
+                
     def _update(self, filename):
         pass
 
@@ -186,9 +193,8 @@ class GtagsExplManager(Manager):
         lfCmd("norm! zz")
         lfCmd("setlocal cursorline! | redraw | sleep 20m | setlocal cursorline!")
 
-    def generateGtags(self):
-        pass
-
+    def updateGtags(self, filename, single_update, auto=True):
+        self._getExplorer().updateGtags(filename, single_update, auto)
 
     def _getDigest(self, line, mode):
         """
