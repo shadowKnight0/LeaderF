@@ -9,6 +9,10 @@ from .utils import *
 from .explorer import *
 from .manager import *
 
+if sys.version_info >= (3, 0):
+    import queue as Queue
+else:
+    import Queue
 
 #*****************************************************
 # GtagsExplorer
@@ -20,6 +24,20 @@ class GtagsExplorer(Explorer):
                                      '.LfCache',
                                      'gtags')
         self._project_root = ""
+
+        self._task_queue = Queue.Queue()
+        self._worker_thread = threading.Thread(target=self._processTask, daemon=True)
+        self._worker_thread.start()
+
+    def __del__(self):
+        self._task_queue.put(None)
+
+    def _processTask(self):
+        while True:
+            task = self._task_queue.get()
+            if task is None:
+                break
+            task()
 
     def getContent(self, *args, **kwargs):
         return self.getFreshContent(*args, **kwargs)
@@ -110,6 +128,9 @@ class GtagsExplorer(Explorer):
         return (dbpath, os.path.exists(os.path.join(dbpath, "GTAGS")))
 
     def updateGtags(self, filename, single_update, auto):
+        self._task_queue.put(partial(self._update, filename, single_update, auto))
+
+    def _update(self, filename, single_update, auto):
         if filename == "":
             return
 
@@ -124,9 +145,6 @@ class GtagsExplorer(Explorer):
             dbpath, exists = self._db_path(filename)
             if not exists:
                 pass
-                
-    def _update(self, filename):
-        pass
 
     def getStlCategory(self):
         return 'Gtags'
