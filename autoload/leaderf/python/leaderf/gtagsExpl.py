@@ -15,8 +15,10 @@ from .manager import *
 #*****************************************************
 class GtagsExplorer(Explorer):
     def __init__(self):
-        self._db_path = None
-        self._is_generated = False
+        self._db_location = os.path.join(lfEval("g:Lf_CacheDirectory"),
+                                     '.LfCache',
+                                     'gtags')
+        self._project_root = ""
 
     def getContent(self, *args, **kwargs):
         return self.getFreshContent(*args, **kwargs)
@@ -48,10 +50,11 @@ class GtagsExplorer(Explorer):
             self._tag_list = list(itertools.chain.from_iterable((i[1] for i in self._file_tags.values())))
             return self._tag_list
 
-    def _rootPath(self, path, dir):
+    def _nearestAncestor(self, markers, path):
         """
-        return True if `dir` exists in `path` or its ancestor path,
-        otherwise return False
+        return the nearest ancestor path(including itself) of `path` that contains
+        one of files or directories in `markers`.
+        `markers` is a list of file or directory names.
         """
         if os.name == 'nt':
             # e.g. C:\\
@@ -59,24 +62,60 @@ class GtagsExplorer(Explorer):
         else:
             root = '/'
 
-        while os.path.abspath(path) != root:
-            cur_dir = os.path.join(path, dir)
-            if os.path.exists(cur_dir) and os.path.isdir(cur_dir):
-                return True
-            path = os.path.join(path, "..")
+        path = os.path.abspath(path)
+        while path != root:
+            for name in markers:
+                if os.path.exists(os.path.join(path, name)):
+                    return path
+            path = os.path.abspath(os.path.join(path, ".."))
 
-        cur_dir = os.path.join(path, dir)
-        if os.path.exists(cur_dir) and os.path.isdir(cur_dir):
+        for name in markers:
+            if os.path.exists(os.path.join(path, name)):
+                return path
+
+        return ""
+
+    def _isVersionControl(self, filename):
+        if self._project_root and filename.startswith(self._project_root):
             return True
 
-        return False
+        ancestor = self._nearestAncestor(lfEval("g:Lf_RootMarkers"), os.path.dirname(filename))
+        if ancestor:
+            self._project_root = ancestor
+            return True
+        else:
+            return False
 
-    def updateGtags(self, filename, auto=True):
-        if filename:
-            if exists:
+    def _isGtagsExist(self, filename):
+        """
+        return the dbpath if gtags exists, otherwise return ""
+        """
+        if self._project_root and filename.startswith(self._project_root):
+            root = self._project_root
+        else:
+            ancestor = self._nearestAncestor(lfEval("g:Lf_RootMarkers"), os.path.dirname(filename))
+            if ancestor:
+                self._project_root = ancestor
+                root = self._project_root
+            else:
+                root = os.getcwd()
+        
+        if os.name == 'nt':
+            db_folder = re.sub(r'[\/]', '%', root.replace(':\\', '%', 1))
+        else:
+            db_folder = root.replace('/', '%')
+
+        return os.path.exists(os.path.join(self._db_location, db_folder, "GTAGS"))
+
+
+    def updateGtags(self, filename, single_update, auto=True):
+        if filename == "":
+            return
+
+        if single_update:
+            if self._isGtagsExist(filename):
                 pass
-        elif (auto and not self._is_generated and isversioncontrol) or not auto:
-            self._is_generated = True
+        elif (auto and self._isVersionControl(filename) and not self._isGtagsExist(filename)) or not auto:
             self._update(filename)
 
     def _update(self, filename):

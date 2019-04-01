@@ -66,8 +66,8 @@ augroup END
 augroup LeaderF_Gtags
     if get(g:, 'Lf_AutoGenerateGtags', 0) == 1
         autocmd!
-        autocmd BufRead * leaderf#Gtags#updateGtags("")
-        autocmd BufWritePost * leaderf#Gtags#updateGtags(expand('<afile>:p'))
+        autocmd BufRead * leaderf#Gtags#updateGtags(expand('<afile>:p'), 0)
+        autocmd BufWritePost * leaderf#Gtags#updateGtags(expand('<afile>:p'), 1)
     endif
 augroup END
 
