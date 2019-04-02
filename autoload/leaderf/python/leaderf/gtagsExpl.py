@@ -5,6 +5,7 @@ import vim
 import re
 import os
 import os.path
+import subprocess
 from .utils import *
 from .explorer import *
 from .manager import *
@@ -26,18 +27,23 @@ class GtagsExplorer(Explorer):
         self._project_root = ""
 
         self._task_queue = Queue.Queue()
-        self._worker_thread = threading.Thread(target=self._processTask, daemon=True)
+        self._worker_thread = threading.Thread(target=self._processTask)
+        self._worker_thread.daemon = True
         self._worker_thread.start()
 
     def __del__(self):
         self._task_queue.put(None)
+        self._worker_thread.join()
 
     def _processTask(self):
         while True:
-            task = self._task_queue.get()
-            if task is None:
-                break
-            task()
+            try:
+                task = self._task_queue.get()
+                if task is None:
+                    break
+                task()
+            except Exception as e:
+                lfPrintError(e)
 
     def getContent(self, *args, **kwargs):
         return self.getFreshContent(*args, **kwargs)
@@ -137,14 +143,21 @@ class GtagsExplorer(Explorer):
         if single_update:
             dbpath, exists = self._db_path(filename)
             if exists:
-                pass
+                cmd = "gtags --single-update %s %s" % (filename, dbpath)
+                subprocess.Popen(cmd, shell=True)
         elif not auto:
             dbpath, exists = self._db_path(filename)
-            pass
+            if not os.path.exists(dbpath):
+                os.makedirs(dbpath)
+            cmd = "gtags %s" % dbpath
+            subprocess.Popen(cmd, shell=True)
         elif self._isVersionControl(filename):
             dbpath, exists = self._db_path(filename)
             if not exists:
-                pass
+                if not os.path.exists(dbpath):
+                    os.makedirs(dbpath)
+                cmd = "gtags %s" % dbpath
+                subprocess.Popen(cmd, shell=True)
 
     def getStlCategory(self):
         return 'Gtags'
