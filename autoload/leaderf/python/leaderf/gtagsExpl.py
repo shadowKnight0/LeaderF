@@ -43,7 +43,7 @@ class GtagsExplorer(Explorer):
                     break
                 task()
             except Exception as e:
-                lfPrintError(e)
+                print(e)
 
     def getContent(self, *args, **kwargs):
         return self.getFreshContent(*args, **kwargs)
