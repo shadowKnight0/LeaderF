@@ -111,9 +111,9 @@ class GtagsExplorer(Explorer):
         else:
             return False
 
-    def _db_path(self, filename):
+    def _root_db_path(self, filename):
         """
-        return the (dbpath,  whether gtags exists)
+        return the (root, dbpath,  whether gtags exists)
         """
         if self._project_root and filename.startswith(self._project_root):
             root = self._project_root
@@ -126,12 +126,12 @@ class GtagsExplorer(Explorer):
                 root = os.getcwd()
         
         if os.name == 'nt':
-            db_folder = re.sub(r'[\/]', '%', root.replace(':\\', '%', 1))
+            db_folder = re.sub(r'[\\/]', '%', root.replace(':\\', '%', 1))
         else:
             db_folder = root.replace('/', '%')
 
         dbpath = os.path.join(self._db_location, db_folder)
-        return (dbpath, os.path.exists(os.path.join(dbpath, "GTAGS")))
+        return (root, dbpath, os.path.exists(os.path.join(dbpath, "GTAGS")))
 
     def updateGtags(self, filename, single_update, auto):
         self._task_queue.put(partial(self._update, filename, single_update, auto))
@@ -141,22 +141,22 @@ class GtagsExplorer(Explorer):
             return
 
         if single_update:
-            dbpath, exists = self._db_path(filename)
+            root, dbpath, exists = self._root_db_path(filename)
             if exists:
-                cmd = "gtags --single-update %s %s" % (filename, dbpath)
+                cmd = "cd %s; gtags --single-update %s %s" % (root, filename, dbpath)
                 subprocess.Popen(cmd, shell=True)
         elif not auto:
-            dbpath, exists = self._db_path(filename)
+            root, dbpath, exists = self._root_db_path(filename)
             if not os.path.exists(dbpath):
                 os.makedirs(dbpath)
-            cmd = "gtags %s" % dbpath
+            cmd = "cd %s; gtags %s" % (root, dbpath)
             subprocess.Popen(cmd, shell=True)
         elif self._isVersionControl(filename):
-            dbpath, exists = self._db_path(filename)
+            root, dbpath, exists = self._root_db_path(filename)
             if not exists:
                 if not os.path.exists(dbpath):
                     os.makedirs(dbpath)
-                cmd = "gtags %s" % dbpath
+                cmd = "cd %s; gtags %s" % (root, dbpath)
                 subprocess.Popen(cmd, shell=True)
 
     def getStlCategory(self):
