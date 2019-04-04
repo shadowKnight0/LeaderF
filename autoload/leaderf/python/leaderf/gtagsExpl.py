@@ -395,9 +395,9 @@ class GtagsExplorer(Explorer):
         if self._Lf_GtagsfilesFromFileExpl:
             cmd = self._buildCmd(root)
         else:
-            if os.path.exists(".git") and os.path.isdir(".git"):
+            if os.path.exists(os.path.join(root, ".git")) and os.path.isdir(os.path.join(root, ".git")):
                 cmd = self._Lf_GtagsfilesCmd[".git"]
-            elif os.path.exists(".hg") and os.path.isdir(".hg"):
+            elif os.path.exists(os.path.join(root, ".hg")) and os.path.isdir(os.path.join(root, ".hg")):
                 cmd = self._Lf_GtagsfilesCmd[".hg"]
             else:
                 cmd = self._Lf_GtagsfilesCmd["default"]
