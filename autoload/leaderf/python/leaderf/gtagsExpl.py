@@ -141,10 +141,19 @@ class GtagsExplorer(Explorer):
         if filename == "":
             return
 
+        if os.name == 'nt':
+            self._gtagsconf = os.path.normpath(os.path.join(self._which("gtags.exe"), "..", "share", "gtags", "gtags.conf"))
+        else:
+            self._gtagsconf = ""
+
+        self._gtagslabel = "native"
+
         if single_update:
             root, dbpath, exists = self._root_dbpath(filename)
             if exists:
-                cmd = 'cd "%s" && gtags --single-update "%s" "%s"' % (root, filename, dbpath)
+                cmd = 'cd "{}" && gtags {} --gtagslabel {} --single-update "{}" "{}"'.format(root,
+                        "--gtagsconf " + self._gtagsconf if self._gtagsconf else "",
+                        self._gtagslabel, filename, dbpath)
                 subprocess.Popen(cmd, shell=True)
         elif not auto:
             root, dbpath, exists = self._root_dbpath(filename)
@@ -153,6 +162,13 @@ class GtagsExplorer(Explorer):
             root, dbpath, exists = self._root_dbpath(filename)
             if not exists:
                 self._executeCmd(root, dbpath)
+
+    def _which(self, executable):
+        for p in os.environ["PATH"]:
+            if os.path.exists(os.path.join(p, executable)):
+                return p
+
+        return ""
 
     def _evalVimVar(self):
         """
