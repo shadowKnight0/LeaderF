@@ -156,10 +156,12 @@ class GtagsExplorer(Explorer):
 
     def _evalVimVar(self):
         """
-        vim variables can not be accessed from a python thread, so we should evaluate the value in advance.
+        vim variables can not be accessed from a python thread,
+        so we should evaluate the value in advance.
         """
         if lfEval("get(g:, 'Lf_GtagsfilesFromFileExpl', 1)") == '0':
             self._Lf_GtagsfilesFromFileExpl = False
+            self._Lf_GtagsfilesCmd = lfEval("g:Lf_GtagsfilesCmd")
             return
         else:
             self._Lf_GtagsfilesFromFileExpl = True
@@ -391,10 +393,16 @@ class GtagsExplorer(Explorer):
 
     def _file_list_cmd(self, root):
         if self._Lf_GtagsfilesFromFileExpl:
-            self._external_cmd = self._buildCmd(root)
-            return self._external_cmd
+            cmd = self._buildCmd(root)
         else:
-            return None
+            if os.path.exists(".git") and os.path.isdir(".git"):
+                cmd = self._Lf_GtagsfilesCmd[".git"]
+            elif os.path.exists(".hg") and os.path.isdir(".hg"):
+                cmd = self._Lf_GtagsfilesCmd[".hg"]
+            else:
+                cmd = self._Lf_GtagsfilesCmd["default"]
+
+        return cmd
 
     def _executeCmd(self, root, dbpath):
         if not os.path.exists(dbpath):
