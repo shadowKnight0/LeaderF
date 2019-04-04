@@ -64,7 +64,7 @@ augroup LeaderF_Mru
 augroup END
 
 augroup LeaderF_Gtags
-    if get(g:, 'Lf_AutoGenerateGtags', 0) == 1
+    if get(g:, 'Lf_AutoGenerateGtags', 1) == 1
         autocmd!
         autocmd BufRead * call leaderf#Gtags#updateGtags(expand('<afile>:p'), 0)
         autocmd BufWritePost * call leaderf#Gtags#updateGtags(expand('<afile>:p'), 1)

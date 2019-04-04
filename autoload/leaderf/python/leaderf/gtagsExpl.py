@@ -111,7 +111,7 @@ class GtagsExplorer(Explorer):
         else:
             return False
 
-    def _root_db_path(self, filename):
+    def _root_dbpath(self, filename):
         """
         return the (root, dbpath,  whether gtags exists)
         """
@@ -141,22 +141,22 @@ class GtagsExplorer(Explorer):
             return
 
         if single_update:
-            root, dbpath, exists = self._root_db_path(filename)
+            root, dbpath, exists = self._root_dbpath(filename)
             if exists:
-                cmd = "cd %s; gtags --single-update %s %s" % (root, filename, dbpath)
+                cmd = "cd %s && gtags --single-update %s %s" % (root, filename, dbpath)
                 subprocess.Popen(cmd, shell=True)
         elif not auto:
-            root, dbpath, exists = self._root_db_path(filename)
+            root, dbpath, exists = self._root_dbpath(filename)
             if not os.path.exists(dbpath):
                 os.makedirs(dbpath)
-            cmd = "cd %s; gtags %s" % (root, dbpath)
+            cmd = "cd %s && gtags %s" % (root, dbpath)
             subprocess.Popen(cmd, shell=True)
         elif self._isVersionControl(filename):
-            root, dbpath, exists = self._root_db_path(filename)
+            root, dbpath, exists = self._root_dbpath(filename)
             if not exists:
                 if not os.path.exists(dbpath):
                     os.makedirs(dbpath)
-                cmd = "cd %s; gtags %s" % (root, dbpath)
+                cmd = "cd %s && gtags %s" % (root, dbpath)
                 subprocess.Popen(cmd, shell=True)
 
     def getStlCategory(self):

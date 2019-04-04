@@ -35,9 +35,13 @@ function! leaderf#Gtags#Maps()
 endfunction
 
 function! leaderf#Gtags#startExpl(win_pos, ...)
-    call leaderf#LfPy("gtagsExplManager.startExplorer('".a:win_pos."')")
+exec g:Lf_py "<< EOF"
+gtagsExplManager.startExplorer(vim.eval("a:win_pos"))
+EOF
 endfunction
 
 function! leaderf#Gtags#updateGtags(filename, single_update)
-    call leaderf#LfPy("gtagsExplManager.updateGtags('".a:filename."', ".(a:single_update ? "True" : "False").")")
+exec g:Lf_py "<< EOF"
+gtagsExplManager.updateGtags(vim.eval("a:filename"), True if int(vim.eval("a:single_update")) else False)
+EOF
 endfunction
