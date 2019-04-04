@@ -134,7 +134,7 @@ class GtagsExplorer(Explorer):
         return (root, dbpath, os.path.exists(os.path.join(dbpath, "GTAGS")))
 
     def updateGtags(self, filename, single_update, auto):
-        self._task_queue.put(partial(self._update, filename, single_update, auto))
+        self._task_queue.put(partial(self._update, lfDecode(filename), single_update, auto))
 
     def _update(self, filename, single_update, auto):
         if filename == "":
@@ -143,20 +143,20 @@ class GtagsExplorer(Explorer):
         if single_update:
             root, dbpath, exists = self._root_dbpath(filename)
             if exists:
-                cmd = "cd %s && gtags --single-update %s %s" % (root, filename, dbpath)
+                cmd = 'cd "%s" && gtags --single-update "%s" "%s"' % (root, filename, dbpath)
                 subprocess.Popen(cmd, shell=True)
         elif not auto:
             root, dbpath, exists = self._root_dbpath(filename)
             if not os.path.exists(dbpath):
                 os.makedirs(dbpath)
-            cmd = "cd %s && gtags %s" % (root, dbpath)
+            cmd = 'cd "%s" && gtags "%s"' % (root, dbpath)
             subprocess.Popen(cmd, shell=True)
         elif self._isVersionControl(filename):
             root, dbpath, exists = self._root_dbpath(filename)
             if not exists:
                 if not os.path.exists(dbpath):
                     os.makedirs(dbpath)
-                cmd = "cd %s && gtags %s" % (root, dbpath)
+                cmd = 'cd "%s" && gtags "%s"' % (root, dbpath)
                 subprocess.Popen(cmd, shell=True)
 
     def getStlCategory(self):
