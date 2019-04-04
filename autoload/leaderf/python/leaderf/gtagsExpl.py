@@ -25,6 +25,7 @@ class GtagsExplorer(Explorer):
                                      '.LfCache',
                                      'gtags')
         self._project_root = ""
+        self._evalVimVar()
 
         self._task_queue = Queue.Queue()
         self._worker_thread = threading.Thread(target=self._processTask)
@@ -147,17 +148,263 @@ class GtagsExplorer(Explorer):
                 subprocess.Popen(cmd, shell=True)
         elif not auto:
             root, dbpath, exists = self._root_dbpath(filename)
-            if not os.path.exists(dbpath):
-                os.makedirs(dbpath)
-            cmd = 'cd "%s" && gtags "%s"' % (root, dbpath)
-            subprocess.Popen(cmd, shell=True)
+            self._executeCmd(root, dbpath)
         elif self._isVersionControl(filename):
             root, dbpath, exists = self._root_dbpath(filename)
             if not exists:
-                if not os.path.exists(dbpath):
-                    os.makedirs(dbpath)
-                cmd = 'cd "%s" && gtags "%s"' % (root, dbpath)
-                subprocess.Popen(cmd, shell=True)
+                self._executeCmd(root, dbpath)
+
+    def _evalVimVar(self):
+        """
+        vim variables can not be accessed from a python thread, so we should evaluate the value in advance.
+        """
+        if lfEval("get(g:, 'Lf_GtagsfilesFromFileExpl', 1)") == '0':
+            self._Lf_GtagsfilesFromFileExpl = False
+            return
+        else:
+            self._Lf_GtagsfilesFromFileExpl = True
+
+        if lfEval("exists('g:Lf_ExternalCommand')") == '1':
+            self._Lf_ExternalCommand = lfEval("g:Lf_ExternalCommand") % dir.join('""')
+            return
+
+        self._Lf_ExternalCommand = None
+        self._Lf_UseVersionControlTool = lfEval("g:Lf_UseVersionControlTool") == '1'
+        self._Lf_WildIgnore = lfEval("g:Lf_WildIgnore")
+        self._Lf_RecurseSubmodules = lfEval("get(g:, 'Lf_RecurseSubmodules', 0)") == '1'
+        if lfEval("exists('g:Lf_DefaultExternalTool')") == '1':
+            self._default_tool = {"rg": 0, "pt": 0, "ag": 0, "find": 0}
+            tool = lfEval("g:Lf_DefaultExternalTool")
+            if tool and lfEval("executable('%s')" % tool) == '0':
+                raise Exception("executable '%s' can not be found!" % tool)
+            self._default_tool[tool] = 1
+        else:
+            self._default_tool = {"rg": 1, "pt": 1, "ag": 1, "find": 1}
+        self._is_rg_executable = lfEval("executable('rg')") == '1'
+        self._Lf_ShowHidden = lfEval("g:Lf_ShowHidden") != '0'
+        self._Lf_FollowLinks = lfEval("g:Lf_FollowLinks") == '1'
+        self._is_pt_executable = lfEval("executable('pt')") == '1'
+        self._is_ag_executable = lfEval("executable('ag')") == '1'
+        self._is_find_executable = lfEval("executable('find')") == '1'
+
+    def _exists(self, path, dir):
+        """
+        return True if `dir` exists in `path` or its ancestor path,
+        otherwise return False
+        """
+        if os.name == 'nt':
+            # e.g. C:\\
+            root = os.path.splitdrive(os.path.abspath(path))[0] + os.sep
+        else:
+            root = '/'
+
+        while os.path.abspath(path) != root:
+            cur_dir = os.path.join(path, dir)
+            if os.path.exists(cur_dir) and os.path.isdir(cur_dir):
+                return True
+            path = os.path.join(path, "..")
+
+        cur_dir = os.path.join(path, dir)
+        if os.path.exists(cur_dir) and os.path.isdir(cur_dir):
+            return True
+
+        return False
+
+    def _buildCmd(self, dir, **kwargs):
+        """
+        this function comes from FileExplorer
+        """
+        if self._Lf_ExternalCommand:
+            return self._Lf_ExternalCommand
+
+        if self._Lf_UseVersionControlTool:
+            if self._exists(dir, ".git"):
+                wildignore = self._Lf_WildIgnore
+                if ".git" in wildignore["dir"]:
+                    wildignore["dir"].remove(".git")
+                if ".git" in wildignore["file"]:
+                    wildignore["file"].remove(".git")
+                ignore = ""
+                for i in wildignore["dir"]:
+                    ignore += ' -x "%s"' % i
+                for i in wildignore["file"]:
+                    ignore += ' -x "%s"' % i
+
+                if "--no-ignore" in kwargs.get("arguments", {}):
+                    no_ignore = ""
+                else:
+                    no_ignore = "--exclude-standard"
+
+                if self._Lf_RecurseSubmodules:
+                    recurse_submodules = "--recurse-submodules"
+                else:
+                    recurse_submodules = ""
+
+                cmd = 'git ls-files %s "%s" && git ls-files --others %s %s "%s"' % (recurse_submodules, dir, no_ignore, ignore, dir)
+                return cmd
+            elif self._exists(dir, ".hg"):
+                wildignore = self._Lf_WildIgnore
+                if ".hg" in wildignore["dir"]:
+                    wildignore["dir"].remove(".hg")
+                if ".hg" in wildignore["file"]:
+                    wildignore["file"].remove(".hg")
+                ignore = ""
+                for i in wildignore["dir"]:
+                    ignore += ' -X "%s"' % self._expandGlob("dir", i)
+                for i in wildignore["file"]:
+                    ignore += ' -X "%s"' % self._expandGlob("file", i)
+
+                cmd = 'hg files %s "%s"' % (ignore, dir)
+                return cmd
+
+        default_tool = self._default_tool
+
+        if default_tool["rg"] and self._is_rg_executable:
+            wildignore = self._Lf_WildIgnore
+            if os.name == 'nt': # https://github.com/BurntSushi/ripgrep/issues/500
+                color = ""
+                ignore = ""
+                for i in wildignore["dir"]:
+                    if self._Lf_ShowHidden or not i.startswith('.'): # rg does not show hidden files by default
+                        ignore += ' -g "!%s"' % i
+                for i in wildignore["file"]:
+                    if self._Lf_ShowHidden or not i.startswith('.'):
+                        ignore += ' -g "!%s"' % i
+            else:
+                color = "--color never"
+                ignore = ""
+                for i in wildignore["dir"]:
+                    if self._Lf_ShowHidden or not i.startswith('.'):
+                        ignore += " -g '!%s'" % i
+                for i in wildignore["file"]:
+                    if self._Lf_ShowHidden or not i.startswith('.'):
+                        ignore += " -g '!%s'" % i
+
+            if self._Lf_FollowLinks:
+                followlinks = "-L"
+            else:
+                followlinks = ""
+
+            if self._Lf_ShowHidden:
+                show_hidden = "--hidden"
+            else:
+                show_hidden = ""
+
+            if "--no-ignore" in kwargs.get("arguments", {}):
+                no_ignore = "--no-ignore"
+            else:
+                no_ignore = ""
+
+            if dir == '.':
+                cur_dir = ''
+            else:
+                cur_dir = '"%s"' % dir
+
+            cmd = 'rg --no-messages --files %s %s %s %s %s %s' % (color, ignore, followlinks, show_hidden, no_ignore, cur_dir)
+        elif default_tool["pt"] and self._is_pt_executable and os.name != 'nt': # there is bug on Windows
+            wildignore = self._Lf_WildIgnore
+            ignore = ""
+            for i in wildignore["dir"]:
+                if self._Lf_ShowHidden or not i.startswith('.'): # pt does not show hidden files by default
+                    ignore += " --ignore=%s" % i
+            for i in wildignore["file"]:
+                if self._Lf_ShowHidden or not i.startswith('.'):
+                    ignore += " --ignore=%s" % i
+
+            if self._Lf_FollowLinks:
+                followlinks = "-f"
+            else:
+                followlinks = ""
+
+            if self._Lf_ShowHidden:
+                show_hidden = "--hidden"
+            else:
+                show_hidden = ""
+
+            if "--no-ignore" in kwargs.get("arguments", {}):
+                no_ignore = "-U"
+            else:
+                no_ignore = ""
+
+            cmd = 'pt --nocolor %s %s %s %s -g="" "%s"' % (ignore, followlinks, show_hidden, no_ignore, dir)
+        elif default_tool["ag"] and self._is_ag_executable and os.name != 'nt': # https://github.com/vim/vim/issues/3236
+            wildignore = self._Lf_WildIgnore
+            ignore = ""
+            for i in wildignore["dir"]:
+                if self._Lf_ShowHidden or not i.startswith('.'): # ag does not show hidden files by default
+                    ignore += ' --ignore "%s"' % i
+            for i in wildignore["file"]:
+                if self._Lf_ShowHidden or not i.startswith('.'):
+                    ignore += ' --ignore "%s"' % i
+
+            if self._Lf_FollowLinks:
+                followlinks = "-f"
+            else:
+                followlinks = ""
+
+            if self._Lf_ShowHidden:
+                show_hidden = "--hidden"
+            else:
+                show_hidden = ""
+
+            if "--no-ignore" in kwargs.get("arguments", {}):
+                no_ignore = "-U"
+            else:
+                no_ignore = ""
+
+            cmd = 'ag --nocolor --silent %s %s %s %s -g "" "%s"' % (ignore, followlinks, show_hidden, no_ignore, dir)
+        elif default_tool["find"] and self._is_find_executable and os.name != 'nt':
+            wildignore = self._Lf_WildIgnore
+            ignore_dir = ""
+            for d in wildignore["dir"]:
+                ignore_dir += '-type d -name "%s" -prune -o ' % d
+
+            ignore_file = ""
+            for f in wildignore["file"]:
+                    ignore_file += '-type f -name "%s" -o ' % f
+
+            if self._Lf_FollowLinks:
+                followlinks = "-L"
+            else:
+                followlinks = ""
+
+            if os.name == 'nt':
+                redir_err = ""
+            else:
+                redir_err = " 2>/dev/null"
+
+            if self._Lf_ShowHidden:
+                show_hidden = ""
+            else:
+                show_hidden = '-name ".*" -prune -o'
+
+            cmd = 'find %s "%s" -name "." -o %s %s %s -type f -print %s %s' % (followlinks,
+                                                                               dir,
+                                                                               ignore_dir,
+                                                                               ignore_file,
+                                                                               show_hidden,
+                                                                               redir_err)
+        else:
+            cmd = None
+
+        return cmd
+
+    def _file_list_cmd(self, root):
+        if self._Lf_GtagsfilesFromFileExpl:
+            self._external_cmd = self._buildCmd(root)
+            return self._external_cmd
+        else:
+            return None
+
+    def _executeCmd(self, root, dbpath):
+        if not os.path.exists(dbpath):
+            os.makedirs(dbpath)
+        cmd = self._file_list_cmd(root)
+        if cmd:
+            cmd = 'cd "{}" && {} | gtags -f- "{}"'.format(root, cmd, dbpath)
+        else:
+            cmd = 'cd "{}" && gtags "{}"'.format(root, dbpath)
+        subprocess.Popen(cmd, shell=True)
 
     def getStlCategory(self):
         return 'Gtags'

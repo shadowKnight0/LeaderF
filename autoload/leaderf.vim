@@ -125,7 +125,13 @@ call s:InitDict('g:Lf_PreviewResult', {
 call s:InitDict('g:Lf_NormalMap', {})
 call s:InitVar('g:Lf_Extensions', {})
 call s:InitDict('g:Lf_CtagsFuncOpts', {})
-call s:InitDict('g:Lf_MaxCount', 2000000)
+call s:InitVar('g:Lf_MaxCount', 2000000)
+call s:InitVar('g:Lf_GtagsfilesFromFileExpl', 1)
+call s:InitDict('g:Lf_GtagsfilesCmd', {
+            \ '.git': 'git ls-files --recurse-submodules',
+            \ '.hg': 'hg files',
+            \ 'default': 'rg --no-messages --files'
+            \})
 
 let s:Lf_CommandMap = {
             \ '<C-A>':         ['<C-A>'],
