@@ -24,6 +24,7 @@ class GtagsExplorer(Explorer):
         self._db_location = os.path.join(lfEval("g:Lf_CacheDirectory"),
                                      '.LfCache',
                                      'gtags')
+        self.gtags_cmd = None
         self._project_root = ""
         self._evalVimVar()
 
@@ -141,30 +142,24 @@ class GtagsExplorer(Explorer):
         if filename == "":
             return
 
-        if os.name == 'nt':
+        if self._gtagsconf == '' and os.name == 'nt':
             self._gtagsconf = os.path.normpath(os.path.join(self._which("gtags.exe"), "..", "share", "gtags", "gtags.conf"))
-        else:
-            self._gtagsconf = ""
 
-        self._gtagslabel = "native"
-
+        root, dbpath, exists = self._root_dbpath(filename)
         if single_update:
-            root, dbpath, exists = self._root_dbpath(filename)
             if exists:
                 cmd = 'cd "{}" && gtags {} --gtagslabel {} --single-update "{}" "{}"'.format(root,
                         "--gtagsconf " + self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, filename, dbpath)
                 subprocess.Popen(cmd, shell=True)
         elif not auto:
-            root, dbpath, exists = self._root_dbpath(filename)
             self._executeCmd(root, dbpath)
         elif self._isVersionControl(filename):
-            root, dbpath, exists = self._root_dbpath(filename)
             if not exists:
                 self._executeCmd(root, dbpath)
 
     def _which(self, executable):
-        for p in os.environ["PATH"]:
+        for p in os.environ["PATH"].split(";"):
             if os.path.exists(os.path.join(p, executable)):
                 return p
 
@@ -175,6 +170,9 @@ class GtagsExplorer(Explorer):
         vim variables can not be accessed from a python thread,
         so we should evaluate the value in advance.
         """
+        self._gtagsconf = lfEval("get(g:, 'Lf_Gtagsconf', '')")
+        self._gtagslabel = lfEval("get(g:, 'Lf_Gtaglable', 'native-pygments')")
+
         if lfEval("get(g:, 'Lf_GtagsfilesFromFileExpl', 1)") == '0':
             self._Lf_GtagsfilesFromFileExpl = False
             self._Lf_GtagsfilesCmd = lfEval("g:Lf_GtagsfilesCmd")
@@ -425,9 +423,14 @@ class GtagsExplorer(Explorer):
             os.makedirs(dbpath)
         cmd = self._file_list_cmd(root)
         if cmd:
-            cmd = 'cd "{}" && {} | gtags -f- "{}"'.format(root, cmd, dbpath)
+            cmd = 'cd "{}" && {} | gtags {} --gtagslabel {} -f- "{}"'.format(root, cmd,
+                        "--gtagsconf " + self._gtagsconf if self._gtagsconf else "",
+                        self._gtagslabel, dbpath)
         else:
-            cmd = 'cd "{}" && gtags "{}"'.format(root, dbpath)
+            cmd = 'cd "{}" && gtags {} --gtagslabel {} "{}"'.format(root,
+                        "--gtagsconf " + self._gtagsconf if self._gtagsconf else "",
+                        self._gtagslabel, dbpath)
+        self.gtags_cmd = cmd
         subprocess.Popen(cmd, shell=True)
 
     def getStlCategory(self):
