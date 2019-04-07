@@ -146,6 +146,16 @@ let g:Lf_Arguments = {
             \           {"name": ["--gtagsconf"], "nargs": 1, "metavar": "<FILE>", "help": "Set environment variable GTAGSCONF to <FILE>."},
             \           {"name": ["--gtagslabel"], "nargs": 1, "metavar": "<LABEL>", "help": "Set environment variable GTAGSLABEL to <LABEL>."},
             \           {"name": ["--skip-symlink"], "nargs": "?", "metavar": "<TYPE>", "help": "Skip symbolic links. If type is 'f' then skip only symbolic links for file, else if 'd' then skip only symbolic links for directory. The default value of type is 'a' (all symbolic links)."},
+            \           {"name": ["-f", "--file"], "nargs": "+", "metavar": "<FILE>", "help": "Show all tags in the <FILE>s."},
+            \           {"name": ["-g", "--grep"], "nargs": 1, "metavar": "<PATTERN>", "help": "Show all lines which match to the <PATTERN>."},
+            \           {"name": ["-d", "--definition"], "nargs": 0, "help": "Show locations of definitions."},
+            \           {"name": ["-r", "--reference"], "nargs": 0, "help": "Show reference to a symbol which has definitions."},
+            \           {"name": ["-s", "--symbol"], "nargs": 0, "help": "Show reference to a symbol which has no definition."},
+            \           {"name": ["-a", "--absolute"], "nargs": 0, "help": "Show absolute path names. By default, show relative path names."},
+            \           {"name": ["-i", "--ignore-case"], "nargs": 0, "help": "Ignore case distinctions in the pattern."},
+            \           {"name": ["--literal"], "nargs": 0, "help": "Execute literal search instead of regular expression search."},
+            \           {"name": ["--path-style"], "nargs": 1, "metavar": "<FORMAT>", "help": "Print path names using <FORMAT>, which may be one of: relative, absolute, shorter, abslib or through."},
+            \           {"name": ["-S", "--scope"], "nargs": 1, "metavar": "<DIR>", "help": "Show only tags which exist under <DIR> directory."},
             \   ],
             \}
 

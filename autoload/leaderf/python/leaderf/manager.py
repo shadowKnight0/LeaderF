@@ -1226,6 +1226,10 @@ class Manager(object):
         self._cli.setNameOnlyFeature(self._getExplorer().supportsNameOnly())
         self._cli.setRefineFeature(self._supportsRefine())
 
+        if self._getExplorer().getStlCategory() in ["Gtags"] and "--update" in self._arguments:
+            self._getExplorer().getContent(*args, **kwargs)
+            return
+
         # lfCmd("echohl WarningMsg | redraw | echo ' searching ...' | echohl NONE")
         if self._getExplorer().getStlCategory() in ["Rg"] and "--recall" in self._arguments:
             content = self._content

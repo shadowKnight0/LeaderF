@@ -48,7 +48,18 @@ class GtagsExplorer(Explorer):
                 print(e)
 
     def getContent(self, *args, **kwargs):
-        return self.getFreshContent(*args, **kwargs)
+        if "--update" in kwargs.get("arguments", {}):
+            if "--accept-dotfiles" in kwargs.get("arguments", {}):
+                self._accept_dotfiles = "--accept-dotfiles"
+            if "--skip-unreadable" in kwargs.get("arguments", {}):
+                self._skip_unreadable = "--skip-unreadable"
+            if "--skip-symlink" in kwargs.get("arguments", {}):
+                self._skip_symlink = "--skip-symlink"
+            if vim.current.buffer.name:
+                filename = vim.current.buffer.name
+            else:
+                filename = ""
+            self.updateGtags(filename, single_update=False, auto=False)
 
     def getFreshContent(self, *args, **kwargs):
         has_new_tagfile = False
@@ -170,8 +181,11 @@ class GtagsExplorer(Explorer):
         vim variables can not be accessed from a python thread,
         so we should evaluate the value in advance.
         """
+        self._accept_dotfiles =  "--accept-dotfiles" if lfEval("get(g:, 'Lf_GtagsAcceptDotfiles', '0')") == '1' else ""
+        self._skip_unreadable =  "--skip-unreadable" if lfEval("get(g:, 'Lf_GtagsSkipUnreadable', '0')") == '1' else ""
+        self._skip_symlink =  "--skip-symlink" if lfEval("get(g:, 'Lf_GtagsSkipSymlink', '0')") == '1' else ""
         self._gtagsconf = lfEval("get(g:, 'Lf_Gtagsconf', '')")
-        self._gtagslabel = lfEval("get(g:, 'Lf_Gtaglable', 'native-pygments')")
+        self._gtagslabel = lfEval("get(g:, 'Lf_Gtagslable', 'native-pygments')")
 
         if lfEval("get(g:, 'Lf_GtagsfilesFromFileExpl', 1)") == '0':
             self._Lf_GtagsfilesFromFileExpl = False
@@ -423,11 +437,13 @@ class GtagsExplorer(Explorer):
             os.makedirs(dbpath)
         cmd = self._file_list_cmd(root)
         if cmd:
-            cmd = 'cd "{}" && {} | gtags {} --gtagslabel {} -f- "{}"'.format(root, cmd,
+            cmd = 'cd "{}" && {} | gtags {} {} {} {} --gtagslabel {} -f- "{}"'.format(root, cmd,
+                        self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
                         "--gtagsconf " + self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, dbpath)
         else:
-            cmd = 'cd "{}" && gtags {} --gtagslabel {} "{}"'.format(root,
+            cmd = 'cd "{}" && gtags {} {} {} {} --gtagslabel {} "{}"'.format(root,
+                        self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
                         "--gtagsconf " + self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, dbpath)
         self.gtags_cmd = cmd
