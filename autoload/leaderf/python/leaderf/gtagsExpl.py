@@ -20,6 +20,7 @@ else:
 #*****************************************************
 class GtagsExplorer(Explorer):
     def __init__(self):
+        self._executor = []
         self._root_markers = lfEval("g:Lf_RootMarkers")
         self._db_location = os.path.join(lfEval("g:Lf_CacheDirectory"),
                                      '.LfCache',
@@ -48,6 +49,11 @@ class GtagsExplorer(Explorer):
                 print(e)
 
     def getContent(self, *args, **kwargs):
+        if vim.current.buffer.name:
+            filename = vim.current.buffer.name
+        else:
+            filename = os.path.join(os.getcwd(), 'no_name')
+
         if "--update" in kwargs.get("arguments", {}):
             if "--accept-dotfiles" in kwargs.get("arguments", {}):
                 self._accept_dotfiles = "--accept-dotfiles"
@@ -55,11 +61,36 @@ class GtagsExplorer(Explorer):
                 self._skip_unreadable = "--skip-unreadable"
             if "--skip-symlink" in kwargs.get("arguments", {}):
                 self._skip_symlink = "--skip-symlink"
-            if vim.current.buffer.name:
-                filename = vim.current.buffer.name
-            else:
-                filename = ""
             self.updateGtags(filename, single_update=False, auto=False)
+            return
+
+        if "-g" in kwargs.get("arguments", {}):
+            pattern = "-g -e %s " % kwargs.get("arguments", {})["-g"][0]
+        elif "-d" in kwargs.get("arguments", {}):
+            pattern = "-d -e %s " % kwargs.get("arguments", {})["-d"][0]
+        elif "-r" in kwargs.get("arguments", {}):
+            pattern = "-r -e %s " % kwargs.get("arguments", {})["-r"][0]
+        elif "-s" in kwargs.get("arguments", {}):
+            pattern = "-s -e %s " % kwargs.get("arguments", {})["-s"][0]
+
+        if "--gtagsconf" in kwargs.get("arguments", {}):
+            self._gtagsconf = kwargs.get("arguments", {})["--gtagsconf"][0]
+        if "--gtagslabel" in kwargs.get("arguments", {}):
+            self._gtagslabel = kwargs.get("arguments", {})["--gtagslabel"][0]
+
+        if self._gtagsconf == '' and os.name == 'nt':
+            self._gtagsconf = os.path.normpath(os.path.join(self._which("gtags.exe"), "..", "share", "gtags", "gtags.conf"))
+
+        root, dbpath, exists = self._root_dbpath(filename)
+        cmd = 'cd "{}" && global {} --gtagslabel {} {}'.format(dbpath,
+                    '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
+                    self._gtagslabel, pattern)
+        executor = AsyncExecutor()
+        self._executor.append(executor)
+        lfCmd("let g:Lf_Debug_GtagsCmd = '%s'" % escQuote(cmd))
+        content = executor.execute(cmd, encoding=lfEval("&encoding"))
+        print(list(content))
+        return content
 
     def getFreshContent(self, *args, **kwargs):
         has_new_tagfile = False
@@ -160,7 +191,7 @@ class GtagsExplorer(Explorer):
         if single_update:
             if exists:
                 cmd = 'cd "{}" && gtags {} --gtagslabel {} --single-update "{}" "{}"'.format(root,
-                        "--gtagsconf " + self._gtagsconf if self._gtagsconf else "",
+                        '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, filename, dbpath)
                 subprocess.Popen(cmd, shell=True)
         elif not auto:
@@ -439,12 +470,12 @@ class GtagsExplorer(Explorer):
         if cmd:
             cmd = 'cd "{}" && {} | gtags {} {} {} {} --gtagslabel {} -f- "{}"'.format(root, cmd,
                         self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
-                        "--gtagsconf " + self._gtagsconf if self._gtagsconf else "",
+                        '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, dbpath)
         else:
             cmd = 'cd "{}" && gtags {} {} {} {} --gtagslabel {} "{}"'.format(root,
                         self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
-                        "--gtagsconf " + self._gtagsconf if self._gtagsconf else "",
+                        '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, dbpath)
         self.gtags_cmd = cmd
         subprocess.Popen(cmd, shell=True)
@@ -454,6 +485,11 @@ class GtagsExplorer(Explorer):
 
     def getStlCurDir(self):
         return escQuote(lfEncode(os.getcwd()))
+
+    def cleanup(self):
+        for exe in self._executor:
+            exe.killProcess()
+        self._executor = []
 
 
 #*****************************************************
