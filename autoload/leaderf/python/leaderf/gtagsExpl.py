@@ -86,8 +86,8 @@ class GtagsExplorer(Explorer):
             self._gtagsconf = os.path.normpath(os.path.join(self._which("gtags.exe"), "..", "share", "gtags", "gtags.conf"))
 
         root, dbpath, exists = self._root_dbpath(filename)
-        cmd = 'cd {}"{}" && global {} --gtagslabel {} {}'.format(self._cd_option, dbpath,
-                    '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
+        cmd = 'cd {}"{}" && global {}--gtagslabel {} {}'.format(self._cd_option, dbpath,
+                    '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                     self._gtagslabel, pattern)
         executor = AsyncExecutor()
         self._executor.append(executor)
@@ -193,8 +193,8 @@ class GtagsExplorer(Explorer):
         root, dbpath, exists = self._root_dbpath(filename)
         if single_update:
             if exists:
-                cmd = 'cd {}"{}" && gtags {} --gtagslabel {} --single-update "{}" "{}"'.format(self._cd_option, root,
-                            '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
+                cmd = 'cd {}"{}" && gtags {}--gtagslabel {} --single-update "{}" "{}"'.format(self._cd_option, root,
+                            '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                             self._gtagslabel, filename, dbpath)
                 subprocess.Popen(cmd, shell=True)
         elif not auto:
@@ -472,19 +472,19 @@ class GtagsExplorer(Explorer):
         cmd = self._file_list_cmd(root)
         if cmd:
             if os.name == 'nt':
-                cmd = 'cd {}"{}" && ( {} ) | gtags {} {} {} {} --gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
+                cmd = 'cd {}"{}" && ( {} ) | gtags {} {} {} {}--gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
                             self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
-                            '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
+                            '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                             self._gtagslabel, dbpath)
             else:
-                cmd = 'cd {}"{}" && {{ {}; }} | gtags {} {} {} {} --gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
+                cmd = 'cd {}"{}" && {{ {}; }} | gtags {} {} {} {}--gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
                             self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
-                            '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
+                            '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                             self._gtagslabel, dbpath)
         else:
-            cmd = 'cd {}"{}" && gtags {} {} {} {} --gtagslabel {} "{}"'.format(self._cd_option, root,
+            cmd = 'cd {}"{}" && gtags {} {} {} {}--gtagslabel {} "{}"'.format(self._cd_option, root,
                         self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
-                        '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
+                        '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, dbpath)
         self.gtags_cmd = cmd
         subprocess.Popen(cmd, shell=True)
