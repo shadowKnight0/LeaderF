@@ -21,6 +21,10 @@ else:
 class GtagsExplorer(Explorer):
     def __init__(self):
         self._executor = []
+        if os.name == 'nt':
+            self._cd_option = '/d '
+        else:
+            self._cd_option = ''
         self._root_markers = lfEval("g:Lf_RootMarkers")
         self._db_location = os.path.join(lfEval("g:Lf_CacheDirectory"),
                                      '.LfCache',
@@ -82,14 +86,13 @@ class GtagsExplorer(Explorer):
             self._gtagsconf = os.path.normpath(os.path.join(self._which("gtags.exe"), "..", "share", "gtags", "gtags.conf"))
 
         root, dbpath, exists = self._root_dbpath(filename)
-        cmd = 'cd "{}" && global {} --gtagslabel {} {}'.format(dbpath,
+        cmd = 'cd {}"{}" && global {} --gtagslabel {} {}'.format(self._cd_option, dbpath,
                     '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
                     self._gtagslabel, pattern)
         executor = AsyncExecutor()
         self._executor.append(executor)
         lfCmd("let g:Lf_Debug_GtagsCmd = '%s'" % escQuote(cmd))
         content = executor.execute(cmd, encoding=lfEval("&encoding"))
-        # print(list(content))
         return content
 
     def getFreshContent(self, *args, **kwargs):
@@ -190,9 +193,9 @@ class GtagsExplorer(Explorer):
         root, dbpath, exists = self._root_dbpath(filename)
         if single_update:
             if exists:
-                cmd = 'cd "{}" && gtags {} --gtagslabel {} --single-update "{}" "{}"'.format(root,
-                        '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
-                        self._gtagslabel, filename, dbpath)
+                cmd = 'cd {}"{}" && gtags {} --gtagslabel {} --single-update "{}" "{}"'.format(self._cd_option, root,
+                            '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
+                            self._gtagslabel, filename, dbpath)
                 subprocess.Popen(cmd, shell=True)
         elif not auto:
             self._executeCmd(root, dbpath)
@@ -468,12 +471,18 @@ class GtagsExplorer(Explorer):
             os.makedirs(dbpath)
         cmd = self._file_list_cmd(root)
         if cmd:
-            cmd = 'cd "{}" && {{ {}; }} | gtags {} {} {} {} --gtagslabel {} -f- "{}"'.format(root, cmd,
-                        self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
-                        '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
-                        self._gtagslabel, dbpath)
+            if os.name == 'nt':
+                cmd = 'cd {}"{}" && ( {} ) | gtags {} {} {} {} --gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
+                            self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
+                            '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
+                            self._gtagslabel, dbpath)
+            else:
+                cmd = 'cd {}"{}" && {{ {}; }} | gtags {} {} {} {} --gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
+                            self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
+                            '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
+                            self._gtagslabel, dbpath)
         else:
-            cmd = 'cd "{}" && gtags {} {} {} {} --gtagslabel {} "{}"'.format(root,
+            cmd = 'cd {}"{}" && gtags {} {} {} {} --gtagslabel {} "{}"'.format(self._cd_option, root,
                         self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
                         '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, dbpath)
