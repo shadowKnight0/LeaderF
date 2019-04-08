@@ -45,3 +45,9 @@ exec g:Lf_py "<< EOF"
 gtagsExplManager.updateGtags(vim.eval("a:filename"), True if int(vim.eval("a:single_update")) else False)
 EOF
 endfunction
+
+function! leaderf#Gtags#TimerCallback(id)
+exec g:Lf_py "<< EOF"
+gtagsExplManager._workInIdle(bang=True)
+EOF
+endfunction

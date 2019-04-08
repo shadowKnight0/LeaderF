@@ -53,6 +53,9 @@ class GtagsExplorer(Explorer):
                 print(e)
 
     def getContent(self, *args, **kwargs):
+        if "--recall" in kwargs.get("arguments", {}):
+            return []
+
         if vim.current.buffer.name:
             filename = vim.current.buffer.name
         else:
@@ -86,7 +89,7 @@ class GtagsExplorer(Explorer):
             self._gtagsconf = os.path.normpath(os.path.join(self._which("gtags.exe"), "..", "share", "gtags", "gtags.conf"))
 
         root, dbpath, exists = self._root_dbpath(filename)
-        cmd = 'cd {}"{}" && global {}--gtagslabel {} {}'.format(self._cd_option, dbpath,
+        cmd = 'GTAGSROOT={} GTAGSDBPATH={} global {}--gtagslabel={} {} --color=never --result=ctags-mod'.format(root, dbpath,
                     '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                     self._gtagslabel, pattern)
         executor = AsyncExecutor()
@@ -598,20 +601,29 @@ class GtagsExplManager(Manager):
 
     def _afterEnter(self):
         super(GtagsExplManager, self)._afterEnter()
-        id = int(lfEval('''matchadd('Lf_hl_tagFile', '^.\{-}\t\zs.\{-}\ze\t')'''))
+        id = int(lfEval('''matchadd('Lf_hl_gtagsFileName', '^.\{-}\ze\t')'''))
         self._match_ids.append(id)
-        id = int(lfEval('''matchadd('Lf_hl_tagType', ';"\t\zs[cdefFgmpstuv]\ze\(\t\|$\)')'''))
+        id = int(lfEval('''matchadd('Lf_hl_gtagsLineNumber', '\t\zs\d\+\ze\t')'''))
         self._match_ids.append(id)
-        keyword = ["namespace", "class", "enum", "file", "function", "kind", "struct", "union"]
-        for i in keyword:
-            id = int(lfEval('''matchadd('Lf_hl_tagKeyword', '\(;"\t.\{-}\)\@<=%s:')''' % i))
-            self._match_ids.append(id)
 
     def _beforeExit(self):
         super(GtagsExplManager, self)._beforeExit()
         for i in self._match_ids:
             lfCmd("silent! call matchdelete(%d)" % i)
         self._match_ids = []
+        if self._timer_id is not None:
+            lfCmd("call timer_stop(%s)" % self._timer_id)
+            self._timer_id = None
+
+    def _bangEnter(self):
+        super(GtagsExplManager, self)._bangEnter()
+        if lfEval("exists('*timer_start')") == '0':
+            lfCmd("echohl Error | redraw | echo ' E117: Unknown function: timer_start' | echohl NONE")
+            return
+        if "--recall" not in self._arguments:
+            self._workInIdle(bang=True)
+            if self._read_finished < 2:
+                self._timer_id = lfEval("timer_start(1, 'leaderf#Gtags#TimerCallback', {'repeat': -1})")
 
 
 #*****************************************************

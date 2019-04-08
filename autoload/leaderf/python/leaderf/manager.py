@@ -1231,7 +1231,7 @@ class Manager(object):
             return
 
         # lfCmd("echohl WarningMsg | redraw | echo ' searching ...' | echohl NONE")
-        if self._getExplorer().getStlCategory() in ["Rg"] and "--recall" in self._arguments:
+        if self._getExplorer().getStlCategory() in ["Rg", "Gtags"] and "--recall" in self._arguments:
             content = self._content
         else:
             content = self._getExplorer().getContent(*args, **kwargs)

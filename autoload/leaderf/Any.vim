@@ -158,6 +158,7 @@ let g:Lf_Arguments = {
             \           {"name": ["--literal"], "nargs": 0, "help": "Execute literal search instead of regular expression search."},
             \           {"name": ["--path-style"], "nargs": 1, "metavar": "<FORMAT>", "help": "Print path names using <FORMAT>, which may be one of: relative, absolute, shorter, abslib or through."},
             \           {"name": ["-S", "--scope"], "nargs": 1, "metavar": "<DIR>", "help": "Show only tags which exist under <DIR> directory."},
+            \           {"name": ["--recall"], "nargs": 0, "help": "Recall last search. If the result window is closed, reopen it."},
             \   ],
             \}
 
