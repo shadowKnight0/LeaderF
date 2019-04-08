@@ -42,13 +42,14 @@ class AsyncExecutor(object):
             if is_stdout:
                 self._finished = True
 
-    def execute(self, cmd, encoding=None, cleanup=None):
+    def execute(self, cmd, encoding=None, cleanup=None, env=None):
         if os.name == 'nt':
             self._process = subprocess.Popen(cmd, bufsize=-1,
                                              stdin=subprocess.PIPE,
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE,
                                              shell=True,
+                                             env=env,
                                              universal_newlines=False)
         else:
             self._process = subprocess.Popen(cmd, bufsize=-1,
@@ -56,6 +57,7 @@ class AsyncExecutor(object):
                                              stderr=subprocess.PIPE,
                                              preexec_fn=os.setsid,
                                              shell=True,
+                                             env=env,
                                              universal_newlines=False)
 
         self._finished = False
