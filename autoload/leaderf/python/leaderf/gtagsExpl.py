@@ -89,7 +89,7 @@ class GtagsExplorer(Explorer):
         self._executor.append(executor)
         lfCmd("let g:Lf_Debug_GtagsCmd = '%s'" % escQuote(cmd))
         content = executor.execute(cmd, encoding=lfEval("&encoding"))
-        print(list(content))
+        # print(list(content))
         return content
 
     def getFreshContent(self, *args, **kwargs):
@@ -468,7 +468,7 @@ class GtagsExplorer(Explorer):
             os.makedirs(dbpath)
         cmd = self._file_list_cmd(root)
         if cmd:
-            cmd = 'cd "{}" && {} | gtags {} {} {} {} --gtagslabel {} -f- "{}"'.format(root, cmd,
+            cmd = 'cd "{}" && {{ {}; }} | gtags {} {} {} {} --gtagslabel {} -f- "{}"'.format(root, cmd,
                         self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
                         '--gtagsconf "%s"' % self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, dbpath)
