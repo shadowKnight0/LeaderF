@@ -60,11 +60,11 @@ class GtagsExplorer(Explorer):
 
         if "--update" in kwargs.get("arguments", {}):
             if "--accept-dotfiles" in kwargs.get("arguments", {}):
-                self._accept_dotfiles = "--accept-dotfiles"
+                self._accept_dotfiles = "--accept-dotfiles "
             if "--skip-unreadable" in kwargs.get("arguments", {}):
-                self._skip_unreadable = "--skip-unreadable"
+                self._skip_unreadable = "--skip-unreadable "
             if "--skip-symlink" in kwargs.get("arguments", {}):
-                self._skip_symlink = "--skip-symlink"
+                self._skip_symlink = "--skip-symlink "
             self.updateGtags(filename, single_update=False, auto=False)
             return
 
@@ -193,7 +193,8 @@ class GtagsExplorer(Explorer):
         root, dbpath, exists = self._root_dbpath(filename)
         if single_update:
             if exists:
-                cmd = 'cd {}"{}" && gtags {}--gtagslabel {} --single-update "{}" "{}"'.format(self._cd_option, root,
+                cmd = 'cd {}"{}" && gtags {}{}{}{}--gtagslabel {} --single-update "{}" "{}"'.format(self._cd_option, root,
+                            self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
                             '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                             self._gtagslabel, filename, dbpath)
                 subprocess.Popen(cmd, shell=True)
@@ -215,9 +216,9 @@ class GtagsExplorer(Explorer):
         vim variables can not be accessed from a python thread,
         so we should evaluate the value in advance.
         """
-        self._accept_dotfiles =  "--accept-dotfiles" if lfEval("get(g:, 'Lf_GtagsAcceptDotfiles', '0')") == '1' else ""
-        self._skip_unreadable =  "--skip-unreadable" if lfEval("get(g:, 'Lf_GtagsSkipUnreadable', '0')") == '1' else ""
-        self._skip_symlink =  "--skip-symlink" if lfEval("get(g:, 'Lf_GtagsSkipSymlink', '0')") == '1' else ""
+        self._accept_dotfiles =  "--accept-dotfiles " if lfEval("get(g:, 'Lf_GtagsAcceptDotfiles', '0')") == '1' else ""
+        self._skip_unreadable =  "--skip-unreadable " if lfEval("get(g:, 'Lf_GtagsSkipUnreadable', '0')") == '1' else ""
+        self._skip_symlink =  "--skip-symlink " if lfEval("get(g:, 'Lf_GtagsSkipSymlink', '0')") == '1' else ""
         self._gtagsconf = lfEval("get(g:, 'Lf_Gtagsconf', '')")
         self._gtagslabel = lfEval("get(g:, 'Lf_Gtagslable', 'native-pygments')")
 
@@ -472,17 +473,17 @@ class GtagsExplorer(Explorer):
         cmd = self._file_list_cmd(root)
         if cmd:
             if os.name == 'nt':
-                cmd = 'cd {}"{}" && ( {} ) | gtags {} {} {} {}--gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
+                cmd = 'cd {}"{}" && ( {} ) | gtags {}{}{}{}--gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
                             self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
                             '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                             self._gtagslabel, dbpath)
             else:
-                cmd = 'cd {}"{}" && {{ {}; }} | gtags {} {} {} {}--gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
+                cmd = 'cd {}"{}" && {{ {}; }} | gtags {}{}{}{}--gtagslabel {} -f- "{}"'.format(self._cd_option, root, cmd,
                             self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
                             '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                             self._gtagslabel, dbpath)
         else:
-            cmd = 'cd {}"{}" && gtags {} {} {} {}--gtagslabel {} "{}"'.format(self._cd_option, root,
+            cmd = 'cd {}"{}" && gtags {}{}{}{}--gtagslabel {} "{}"'.format(self._cd_option, root,
                         self._accept_dotfiles, self._skip_unreadable, self._skip_symlink,
                         '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, dbpath)
