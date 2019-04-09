@@ -21,7 +21,7 @@ else:
 class GtagsExplorer(Explorer):
     def __init__(self):
         self._executor = []
-        self._pattern_regex = ""
+        self._pattern_regex = []
         if os.name == 'nt':
             self._cd_option = '/d '
         else:
@@ -106,30 +106,27 @@ class GtagsExplorer(Explorer):
             ignorecase = ""
 
         if "--append" not in kwargs.get("arguments", {}):
-            self._pattern_regex = ""
+            self._pattern_regex = []
 
         if ignorecase:
             case_pattern = r'\c'
         else:
             case_pattern = r'\C'
 
-        # if len(pattern) > 1 and (pattern[0] == pattern[-1] == '"' or pattern[0] == pattern[-1] == "'"):
-        #     p = pattern[1:-1]
+        if len(pattern) > 1 and (pattern[0] == pattern[-1] == '"' or pattern[0] == pattern[-1] == "'"):
+            p = pattern[1:-1]
+        else:
+            p = pattern
 
-        # if literal:
-        #     if len(pattern) > 1 and pattern[0] == pattern[-1] == '"':
-        #         p = re.sub(r'\\(?!")', r'\\\\', p)
-        #     else:
-        #         p = p.replace('\\', r'\\')
+        if literal:
+            if len(pattern) > 1 and pattern[0] == pattern[-1] == '"':
+                p = re.sub(r'\\(?!")', r'\\\\', p)
+            else:
+                p = p.replace('\\', r'\\')
 
-        #     self._pattern_regex = r'\V' + case_pattern + p
-        # else:
-        #     if word_or_line == '-w ':
-        #         p = '<' + p + '>'
-        #     self._pattern_regex = self.translateRegex(case_pattern + p, is_perl)
-
-        # if pattern == '':
-        #     pattern = '"" '
+            self._pattern_regex.append(r'\V' + case_pattern + p)
+        else:
+            self._pattern_regex.append(self.translateRegex(case_pattern + p))
 
         root, dbpath, exists = self._root_dbpath(filename)
 
@@ -146,6 +143,91 @@ class GtagsExplorer(Explorer):
         lfCmd("let g:Lf_Debug_GtagsCmd = '%s'" % escQuote(cmd))
         content = executor.execute(cmd, env=env)
         return content
+
+    def translateRegex(self, regex, is_perl=False):
+        """
+        copied from RgExplorer
+        """
+        vim_regex = regex
+
+        vim_regex = re.sub(r'([%@&])', r'\\\1', vim_regex)
+
+        # non-greedy pattern
+        vim_regex = re.sub(r'(?<!\\)\*\?', r'{-}', vim_regex)
+        vim_regex = re.sub(r'(?<!\\)\+\?', r'{-1,}', vim_regex)
+        vim_regex = re.sub(r'(?<!\\)\?\?', r'{-0,1}', vim_regex)
+        vim_regex = re.sub(r'(?<!\\)\{(.*?)\}\?', r'{-\1}', vim_regex)
+
+        if is_perl:
+            # *+, ++, ?+, {m,n}+ => *, +, ?, {m,n}
+            vim_regex = re.sub(r'(?<!\\)([*+?}])\+', r'\1', vim_regex)
+            # remove (?#....)
+            vim_regex = re.sub(r'\(\?#.*?\)', r'', vim_regex)
+            # (?=atom) => atom\@=
+            vim_regex = re.sub(r'\(\?=(.+?)\)', r'(\1)@=', vim_regex)
+            # (?!atom) => atom\@!
+            vim_regex = re.sub(r'\(\?!(.+?)\)', r'(\1)@!', vim_regex)
+            # (?<=atom) => atom\@<=
+            vim_regex = re.sub(r'\(\?<=(.+?)\)', r'(\1)@<=', vim_regex)
+            # (?<!atom) => atom\@<!
+            vim_regex = re.sub(r'\(\?<!(.+?)\)', r'(\1)@<!', vim_regex)
+            # (?>atom) => atom\@>
+            vim_regex = re.sub(r'\(\?>(.+?)\)', r'(\1)@>', vim_regex)
+
+        # this won't hurt although they are not the same
+        vim_regex = vim_regex.replace(r'\A', r'^')
+        vim_regex = vim_regex.replace(r'\z', r'$')
+        vim_regex = vim_regex.replace(r'\B', r'')
+
+        # word boundary
+        vim_regex = re.sub(r'\\b', r'(<|>)', vim_regex)
+
+        # case-insensitive
+        vim_regex = vim_regex.replace(r'(?i)', r'\c')
+        vim_regex = vim_regex.replace(r'(?-i)', r'\C')
+
+        # (?P<name>exp) => (exp)
+        vim_regex = re.sub(r'(?<=\()\?P<\w+>', r'', vim_regex)
+
+        # (?:exp) => %(exp)
+        vim_regex =  re.sub(r'\(\?:(.+?)\)', r'%(\1)', vim_regex)
+
+        # \a          bell (\x07)
+        # \f          form feed (\x0C)
+        # \v          vertical tab (\x0B)
+        vim_regex = vim_regex.replace(r'\a', r'%x07')
+        vim_regex = vim_regex.replace(r'\f', r'%x0C')
+        vim_regex = vim_regex.replace(r'\v', r'%x0B')
+
+        # \123        octal character code (up to three digits) (when enabled)
+        # \x7F        hex character code (exactly two digits)
+        vim_regex = re.sub(r'\\(x[0-9A-Fa-f][0-9A-Fa-f])', r'%\1', vim_regex)
+        # \x{10FFFF}  any hex character code corresponding to a Unicode code point
+        # \u007F      hex character code (exactly four digits)
+        # \u{7F}      any hex character code corresponding to a Unicode code point
+        # \U0000007F  hex character code (exactly eight digits)
+        # \U{7F}      any hex character code corresponding to a Unicode code point
+        vim_regex = re.sub(r'\\([uU])', r'%\1', vim_regex)
+
+        vim_regex = re.sub(r'\[\[:ascii:\]\]', r'[\\x00-\\x7F]', vim_regex)
+        vim_regex = re.sub(r'\[\[:word:\]\]', r'[0-9A-Za-z_]', vim_regex)
+
+        vim_regex = vim_regex.replace(r'[[:^alnum:]]', r'[^0-9A-Za-z]')
+        vim_regex = vim_regex.replace(r'[[:^alpha:]]', r'[^A-Za-z]')
+        vim_regex = vim_regex.replace(r'[[:^ascii:]]', r'[^\x00-\x7F]')
+        vim_regex = vim_regex.replace(r'[[:^blank:]]', r'[^\t ]')
+        vim_regex = vim_regex.replace(r'[[:^cntrl:]]', r'[^\x00-\x1F\x7F]')
+        vim_regex = vim_regex.replace(r'[[:^digit:]]', r'[^0-9]')
+        vim_regex = vim_regex.replace(r'[[:^graph:]]', r'[^!-~]')
+        vim_regex = vim_regex.replace(r'[[:^lower:]]', r'[^a-z]')
+        vim_regex = vim_regex.replace(r'[[:^print:]]', r'[^ -~]')
+        vim_regex = vim_regex.replace(r'[[:^punct:]]', r'[^!-/:-@\[-`{-~]')
+        vim_regex = vim_regex.replace(r'[[:^space:]]', r'[^\t\n\r ]')
+        vim_regex = vim_regex.replace(r'[[:^upper:]]', r'[^A-Z]')
+        vim_regex = vim_regex.replace(r'[[:^word:]]', r'[^0-9A-Za-z_]')
+        vim_regex = vim_regex.replace(r'[[:^xdigit:]]', r'[^0-9A-Fa-f]')
+
+        return r'\v' + vim_regex
 
     def _nearestAncestor(self, markers, path):
         """
@@ -625,6 +707,12 @@ class GtagsExplManager(Manager):
         self._match_ids.append(id)
         id = int(lfEval('''matchadd('Lf_hl_gtagsLineNumber', '\t\zs\d\+\ze\t')'''))
         self._match_ids.append(id)
+        try:
+            for i in self._getExplorer().getPatternRegex():
+                id = int(lfEval("matchadd('Lf_hl_gtagsHighlight', '%s', 9)" % escQuote(i)))
+                self._match_ids.append(id)
+        except vim.error:
+            pass
 
     def _beforeExit(self):
         super(GtagsExplManager, self)._beforeExit()
