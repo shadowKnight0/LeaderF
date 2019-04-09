@@ -245,7 +245,7 @@ class GtagsExplorer(Explorer):
         self._skip_unreadable =  "--skip-unreadable " if lfEval("get(g:, 'Lf_GtagsSkipUnreadable', '0')") == '1' else ""
         self._skip_symlink =  "--skip-symlink " if lfEval("get(g:, 'Lf_GtagsSkipSymlink', '0')") == '1' else ""
         self._gtagsconf = lfEval("get(g:, 'Lf_Gtagsconf', '')")
-        self._gtagslabel = lfEval("get(g:, 'Lf_Gtagslable', 'native-pygments')")
+        self._gtagslabel = lfEval("get(g:, 'Lf_Gtagslable', 'default')")
 
         if lfEval("get(g:, 'Lf_GtagsfilesFromFileExpl', 1)") == '0':
             self._Lf_GtagsfilesFromFileExpl = False
@@ -304,6 +304,10 @@ class GtagsExplorer(Explorer):
         """
         this function comes from FileExplorer
         """
+        # do not use external command if the encoding of `dir` is not ascii
+        if not isAscii(dir):
+            return None
+
         if self._Lf_ExternalCommand:
             return self._Lf_ExternalCommand
 
@@ -513,7 +517,9 @@ class GtagsExplorer(Explorer):
                         '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
                         self._gtagslabel, dbpath)
         self.gtags_cmd = cmd
-        subprocess.Popen(cmd, shell=True)
+
+        proc = subprocess.Popen(cmd, shell=True)
+        proc.communicate()
 
     def getStlCategory(self):
         return 'Gtags'
