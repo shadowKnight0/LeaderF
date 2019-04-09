@@ -90,18 +90,14 @@ class GtagsExplorer(Explorer):
 
         root, dbpath, exists = self._root_dbpath(filename)
 
-        if os.name == 'nt':
-            env = os.environ
-            env["GTAGSROOT"] = root
-            env["GTAGSDBPATH"] = dbpath
-            cmd = 'global {}--gtagslabel={} {} --color=never --result=ctags-mod'.format(
-                        '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
-                        self._gtagslabel, pattern)
-        else:
-            env = None
-            cmd = 'GTAGSROOT={} GTAGSDBPATH={} global {}--gtagslabel={} {} --color=never --result=ctags-mod'.format(root, dbpath,
-                        '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
-                        self._gtagslabel, pattern)
+        env = os.environ
+        env["GTAGSROOT"] = root
+        env["GTAGSDBPATH"] = dbpath
+
+        cmd = 'global {}--gtagslabel={} {} --color=never --result=ctags-mod'.format(
+                    '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
+                    self._gtagslabel, pattern)
+
         executor = AsyncExecutor()
         self._executor.append(executor)
         lfCmd("let g:Lf_Debug_GtagsCmd = '%s'" % escQuote(cmd))
