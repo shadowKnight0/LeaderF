@@ -21,6 +21,7 @@ else:
 class GtagsExplorer(Explorer):
     def __init__(self):
         self._executor = []
+        self._pattern_regex = ""
         if os.name == 'nt':
             self._cd_option = '/d '
         else:
@@ -72,13 +73,19 @@ class GtagsExplorer(Explorer):
             return
 
         if "-d" in kwargs.get("arguments", {}):
-            pattern = "-d -e %s " % kwargs.get("arguments", {})["-d"][0]
+            pattern = kwargs.get("arguments", {})["-d"][0]
+            pattern_option = "-d -e %s " % pattern
         elif "-r" in kwargs.get("arguments", {}):
-            pattern = "-r -e %s " % kwargs.get("arguments", {})["-r"][0]
+            pattern = kwargs.get("arguments", {})["-r"][0]
+            pattern_option = "-r -e %s " % pattern
         elif "-s" in kwargs.get("arguments", {}):
-            pattern = "-s -e %s " % kwargs.get("arguments", {})["-s"][0]
+            pattern = kwargs.get("arguments", {})["-s"][0]
+            pattern_option = "-s -e %s " % pattern
         elif "-g" in kwargs.get("arguments", {}):
-            pattern = "-g -e %s " % kwargs.get("arguments", {})["-g"][0]
+            pattern = kwargs.get("arguments", {})["-g"][0]
+            pattern_option = "-g -e %s " % pattern
+        else:
+            pass
 
         if "--gtagsconf" in kwargs.get("arguments", {}):
             self._gtagsconf = kwargs.get("arguments", {})["--gtagsconf"][0]
@@ -88,15 +95,51 @@ class GtagsExplorer(Explorer):
         if self._gtagsconf == '' and os.name == 'nt':
             self._gtagsconf = os.path.normpath(os.path.join(self._which("gtags.exe"), "..", "share", "gtags", "gtags.conf"))
 
+        if "--literal" in kwargs.get("arguments", {}):
+            literal = "--literal "
+        else:
+            literal = ""
+
+        if "-i" in kwargs.get("arguments", {}):
+            ignorecase = "-i "
+        else:
+            ignorecase = ""
+
+        if "--append" not in kwargs.get("arguments", {}):
+            self._pattern_regex = ""
+
+        if ignorecase:
+            case_pattern = r'\c'
+        else:
+            case_pattern = r'\C'
+
+        # if len(pattern) > 1 and (pattern[0] == pattern[-1] == '"' or pattern[0] == pattern[-1] == "'"):
+        #     p = pattern[1:-1]
+
+        # if literal:
+        #     if len(pattern) > 1 and pattern[0] == pattern[-1] == '"':
+        #         p = re.sub(r'\\(?!")', r'\\\\', p)
+        #     else:
+        #         p = p.replace('\\', r'\\')
+
+        #     self._pattern_regex = r'\V' + case_pattern + p
+        # else:
+        #     if word_or_line == '-w ':
+        #         p = '<' + p + '>'
+        #     self._pattern_regex = self.translateRegex(case_pattern + p, is_perl)
+
+        # if pattern == '':
+        #     pattern = '"" '
+
         root, dbpath, exists = self._root_dbpath(filename)
 
         env = os.environ
         env["GTAGSROOT"] = root
         env["GTAGSDBPATH"] = dbpath
 
-        cmd = 'global {}--gtagslabel={} {} --color=never --result=ctags-mod'.format(
+        cmd = 'global {}--gtagslabel={} {} {}{}--color=never --result=ctags-mod'.format(
                     '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
-                    self._gtagslabel, pattern)
+                    self._gtagslabel, pattern_option, literal, ignorecase)
 
         executor = AsyncExecutor()
         self._executor.append(executor)
@@ -482,6 +525,9 @@ class GtagsExplorer(Explorer):
         for exe in self._executor:
             exe.killProcess()
         self._executor = []
+
+    def getPatternRegex(self):
+        return self._pattern_regex
 
 
 #*****************************************************
