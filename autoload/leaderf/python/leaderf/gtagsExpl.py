@@ -71,14 +71,14 @@ class GtagsExplorer(Explorer):
             self.updateGtags(filename, single_update=False, auto=False)
             return
 
-        if "-g" in kwargs.get("arguments", {}):
-            pattern = "-g -e %s " % kwargs.get("arguments", {})["-g"][0]
-        elif "-d" in kwargs.get("arguments", {}):
+        if "-d" in kwargs.get("arguments", {}):
             pattern = "-d -e %s " % kwargs.get("arguments", {})["-d"][0]
         elif "-r" in kwargs.get("arguments", {}):
             pattern = "-r -e %s " % kwargs.get("arguments", {})["-r"][0]
         elif "-s" in kwargs.get("arguments", {}):
             pattern = "-s -e %s " % kwargs.get("arguments", {})["-s"][0]
+        elif "-g" in kwargs.get("arguments", {}):
+            pattern = "-g -e %s " % kwargs.get("arguments", {})["-g"][0]
 
         if "--gtagsconf" in kwargs.get("arguments", {}):
             self._gtagsconf = kwargs.get("arguments", {})["--gtagsconf"][0]
@@ -103,33 +103,6 @@ class GtagsExplorer(Explorer):
         lfCmd("let g:Lf_Debug_GtagsCmd = '%s'" % escQuote(cmd))
         content = executor.execute(cmd, env=env)
         return content
-
-    def getFreshContent(self, *args, **kwargs):
-        has_new_tagfile = False
-        has_changed_tagfile = False
-        filenames = [name for name in self._file_tags]
-        for tagfile in vim.eval("tagfiles()"):
-            tagfile = os.path.abspath(tagfile)
-            mtime = os.path.getmtime(tagfile)
-            if tagfile not in self._file_tags:
-                has_new_tagfile = True
-                with lfOpen(tagfile, 'r', errors='ignore') as f:
-                    self._file_tags[tagfile] = [mtime, f.readlines()[6:]]
-            else:
-                filenames.remove(tagfile)
-                if mtime != self._file_tags[tagfile][0]:
-                    has_changed_tagfile = True
-                    with lfOpen(tagfile, 'r', errors='ignore') as f:
-                        self._file_tags[tagfile] = [mtime, f.readlines()[6:]]
-
-        for name in filenames:
-            del self._file_tags[name]
-
-        if has_new_tagfile == False and has_changed_tagfile == False:
-            return self._tag_list
-        else:
-            self._tag_list = list(itertools.chain.from_iterable((i[1] for i in self._file_tags.values())))
-            return self._tag_list
 
     def _nearestAncestor(self, markers, path):
         """
@@ -518,6 +491,7 @@ class GtagsExplManager(Manager):
     def __init__(self):
         super(GtagsExplManager, self).__init__()
         self._match_ids = []
+        self._match_path = False
 
     def _getExplClass(self):
         return GtagsExplorer
@@ -528,49 +502,31 @@ class GtagsExplManager(Manager):
     def _acceptSelection(self, *args, **kwargs):
         if len(args) == 0:
             return
+
         line = args[0]
-        # {tagname}<Tab>{tagfile}<Tab>{tagaddress}[;"<Tab>{tagfield}..]
-        tagname, tagfile, right = line.split('\t', 2)
-        res = right.split(';"\t', 1)
-        tagaddress = res[0]
+        file, line_num = line.split('\t', 2)[:2]
+        if not os.path.isabs(file):
+            if file.startswith(".\\") or file.startswith("./"):
+                file = file[2:]
+            file = os.path.join(self._getInstance().getCwd(), lfDecode(file))
+            file = lfEncode(file)
+
         try:
             if kwargs.get("mode", '') == 't':
-                lfCmd("tab drop %s" % escSpecial(tagfile))
+                lfCmd("tab drop %s | %s" % (escSpecial(file), line_num))
             else:
-                lfCmd("hide edit %s" % escSpecial(tagfile))
-        except vim.error as e: # E37
+                lfCmd("hide edit +%s %s" % (line_num, escSpecial(file)))
+            lfCmd("norm! zz")
+            lfCmd("setlocal cursorline! | redraw | sleep 20m | setlocal cursorline!")
+        except vim.error as e:
             lfPrintError(e)
-
-        if tagaddress[0] not in '/?':
-            lfCmd(tagaddress)
-        else:
-            lfCmd("norm! gg")
-
-            # In case there are mutiple matches.
-            if len(res) > 1:
-                result = re.search('(?<=\t)line:\d+', res[1])
-                if result:
-                    line_nr = result.group(0).split(':')[1]
-                    lfCmd(line_nr)
-                else: # for c, c++
-                    keyword = "(class|enum|struct|union)"
-                    result = re.search('(?<=\t)%s:\S+' % keyword, res[1])
-                    if result:
-                        tagfield = result.group(0).split(":")
-                        name = tagfield[0]
-                        value = tagfield[-1]
-                        lfCmd("call search('\m%s\_s\+%s\_[^;{]*{', 'w')" % (name, value))
-
-            pattern = "\M" + tagaddress[1:-1]
-            lfCmd("call search('%s', 'w')" % escQuote(pattern))
-
-        if lfEval("search('\V%s', 'wc')" % escQuote(tagname)) == '0':
-            lfCmd("norm! ^")
-        lfCmd("norm! zz")
-        lfCmd("setlocal cursorline! | redraw | sleep 20m | setlocal cursorline!")
 
     def updateGtags(self, filename, single_update, auto=True):
         self._getExplorer().updateGtags(filename, single_update, auto)
+
+    def setArguments(self, arguments):
+        self._arguments = arguments
+        self._match_path = "--match-path" in arguments
 
     def _getDigest(self, line, mode):
         """
@@ -580,7 +536,10 @@ class GtagsExplManager(Manager):
                   1, return the name only
                   2, return the directory name
         """
-        return line[:line.find('\t')]
+        if self._match_path:
+            return line
+
+        return line[line.find('\t', line.find('\t')) + 1:]
 
     def _getDigestStartPos(self, line, mode):
         """
@@ -590,7 +549,10 @@ class GtagsExplManager(Manager):
                   1, return the start postion of name only
                   2, return the start postion of directory name
         """
-        return 0
+        if self._match_path:
+            return 0
+
+        return lfBytesLen(line[:line.find('\t', line.find('\t'))]) + 1
 
     def _createHelp(self):
         help = []
