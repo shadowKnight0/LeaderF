@@ -95,6 +95,16 @@ class GtagsExplorer(Explorer):
         if self._gtagsconf == '' and os.name == 'nt':
             self._gtagsconf = os.path.normpath(os.path.join(self._which("gtags.exe"), "..", "share", "gtags", "gtags.conf"))
 
+        if "--path-style" in kwargs.get("arguments", {}):
+            path_style = "--path-style %s " % kwargs.get("arguments", {})["--path-style"][0]
+        else:
+            path_style = ""
+
+        if "-S" in kwargs.get("arguments", {}):
+            scope = "--scope %s " % kwargs.get("arguments", {})["-S"][0]
+        else:
+            scope = ""
+
         if "--literal" in kwargs.get("arguments", {}):
             literal = "--literal "
         else:
@@ -108,6 +118,8 @@ class GtagsExplorer(Explorer):
         if "--append" not in kwargs.get("arguments", {}):
             self._pattern_regex = []
 
+
+        # build vim regex, which is used for highlighting
         if ignorecase:
             case_pattern = r'\c'
         else:
@@ -126,7 +138,12 @@ class GtagsExplorer(Explorer):
 
             self._pattern_regex.append(r'\V' + case_pattern + p)
         else:
-            self._pattern_regex.append(self.translateRegex(case_pattern + p))
+            vim_regex = self.translateRegex(case_pattern + p)
+            if "-g" not in kwargs.get("arguments", {}):
+                vim_regex = vim_regex.replace('.', r'\w')
+
+            self._pattern_regex.append(vim_regex)
+
 
         root, dbpath, exists = self._root_dbpath(filename)
 
@@ -134,9 +151,9 @@ class GtagsExplorer(Explorer):
         env["GTAGSROOT"] = root
         env["GTAGSDBPATH"] = dbpath
 
-        cmd = 'global {}--gtagslabel={} {} {}{}--color=never --result=ctags-mod'.format(
+        cmd = 'global {}--gtagslabel={} {} {}{}{}{}--color=never --result=ctags-mod'.format(
                     '--gtagsconf "%s" ' % self._gtagsconf if self._gtagsconf else "",
-                    self._gtagslabel, pattern_option, literal, ignorecase)
+                    self._gtagslabel, pattern_option, path_style, scope, literal, ignorecase)
 
         executor = AsyncExecutor()
         self._executor.append(executor)
